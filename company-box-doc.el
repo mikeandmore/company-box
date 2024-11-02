@@ -78,6 +78,12 @@
              (get-buffer)))
          (if (eq t it) nil it))))
 
+(defun company-box-doc--root-position (frame x y)
+  (if frame
+      (-let* (((fx . fy) (frame-position frame)))
+        (company-box-doc--root-position (frame-parent frame) (+ fx x) (+ fy y)))
+    (cons x y)))
+
 (defun company-box-doc--set-frame-position (frame)
   (-let* ((box-position (frame-position (company-box--get-frame)))
           (box-width (frame-pixel-width (company-box--get-frame)))
@@ -107,7 +113,11 @@
                         (> space-left (+ width border (/ (frame-char-width) 2)))
                         (- (car box-position) width border (/ (frame-char-width) 2))))
                  x)))
-    (set-frame-position frame (max x 0) (max y 10))
+    (-let* (((fx . fy) (company-box-doc--root-position
+                        (if company-box-doc-no-wrap (frame-parent (company-box--get-frame)) nil)
+                        (max x 0)
+                        (max y 10))))
+      (set-frame-position frame fx fy))
     (set-frame-size frame width height t)))
 
 (defun company-box-doc--make-buffer (object)
@@ -130,7 +140,8 @@
 (defun company-box-doc--make-frame (buffer)
   (let* ((company-box-frame-parameters
           (append company-box-doc-frame-parameters
-                  company-box-frame-parameters))
+                  company-box-frame-parameters
+                  (when company-box-doc-no-wrap '((parent-frame . nil)))))
          (frame (company-box--make-frame buffer)))
     ;; (set-face-background 'internal-border "white" frame)
     (set-frame-parameter frame 'name "")
